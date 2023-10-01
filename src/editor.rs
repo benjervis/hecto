@@ -35,6 +35,7 @@ pub struct Editor {
     should_quit: bool,
     terminal: Terminal,
     cursor_position: Position,
+    selected_cursor_position: Position,
     offset: Position,
     document: Document,
     status_message: StatusMessage,
@@ -131,6 +132,9 @@ impl Editor {
     fn move_cursor(&mut self, key: Key) {
         let terminal_height = self.terminal.size().height as usize;
         let Position { mut x, mut y } = self.cursor_position;
+        let Position {
+            x: mut selected_x, ..
+        } = self.selected_cursor_position;
 
         let height = self.document.len();
         let mut width = if let Some(row) = self.document.row(y) {
@@ -140,30 +144,45 @@ impl Editor {
         };
 
         match key {
-            Key::Up => y = y.saturating_sub(1),
+            Key::Up => {
+                y = y.saturating_sub(1);
+
+                if selected_x != x {
+                    x = selected_x;
+                }
+            }
             Key::Down => {
                 if y < height {
                     y = y.saturating_add(1)
+                }
+
+                if selected_x != x {
+                    x = selected_x;
                 }
             }
             Key::Left => {
                 if x > 0 {
                     x -= 1;
+                    selected_x -= 1;
                 } else if y > 0 {
                     y -= 1;
                     if let Some(row) = self.document.row(y) {
                         x = row.len();
+                        selected_x = row.len();
                     } else {
                         x = 0;
+                        selected_x = 0;
                     }
                 }
             }
             Key::Right => {
                 if x < width {
                     x += 1;
+                    selected_x += 1;
                 } else if y < height {
                     y += 1;
                     x = 0;
+                    selected_x = 0;
                 }
             }
             Key::PageUp => {
@@ -195,7 +214,8 @@ impl Editor {
             x = width;
         }
 
-        self.cursor_position = Position { x, y }
+        self.cursor_position = Position { x, y };
+        self.selected_cursor_position.x = selected_x;
     }
 
     pub fn default() -> Self {
@@ -220,6 +240,7 @@ impl Editor {
             terminal: Terminal::default().expect("Failed to initialize terminal"),
             document,
             cursor_position: Position::default(),
+            selected_cursor_position: Position::default(),
             offset: Position::default(),
             status_message: StatusMessage::from(initial_status),
         }
