@@ -1,4 +1,4 @@
-use std::cmp;
+use core::cmp;
 use unicode_segmentation::UnicodeSegmentation;
 
 #[derive(Default)]
@@ -15,7 +15,7 @@ impl From<&str> for Row {
         };
 
         row.update_len();
-        return row;
+        row
     }
 }
 
@@ -25,19 +25,20 @@ impl Row {
         let start = cmp::min(start, end);
 
         let mut result = String::new();
+        #[allow(clippy::arithmetic_side_effects)]
         for grapheme in self.string[..]
             .graphemes(true)
             .skip(start)
             .take(end - start)
         {
             if grapheme == "\t" {
-                result.push_str(" ");
+                result.push(' ');
             } else {
                 result.push_str(grapheme);
             }
         }
 
-        return result;
+        result
     }
 
     pub fn len(&self) -> usize {
@@ -52,14 +53,14 @@ impl Row {
         self.len = self.string[..].graphemes(true).count();
     }
 
-    pub fn insert(&mut self, at: usize, c: char) {
+    pub fn insert(&mut self, at: usize, char: char) {
         if at >= self.len() {
-            self.string.push(c);
+            self.string.push(char);
         } else {
             let mut result: String = self.string[..].graphemes(true).take(at).collect();
             let remainder: String = self.string[..].graphemes(true).skip(at).collect();
 
-            result.push(c);
+            result.push(char);
             result.push_str(&remainder);
             self.string = result;
         }
@@ -67,16 +68,17 @@ impl Row {
         self.update_len();
     }
 
+    #[allow(clippy::arithmetic_side_effects)]
     pub fn delete(&mut self, at: usize) {
         if at >= self.len() {
             return;
-        } else {
-            let mut result: String = self.string[..].graphemes(true).take(at).collect();
-            let remainder: String = self.string[..].graphemes(true).skip(at + 1).collect();
-
-            result.push_str(&remainder);
-            self.string = result;
         }
+
+        let mut result: String = self.string[..].graphemes(true).take(at).collect();
+        let remainder: String = self.string[..].graphemes(true).skip(at + 1).collect();
+
+        result.push_str(&remainder);
+        self.string = result;
 
         self.update_len();
     }
@@ -92,7 +94,7 @@ impl Row {
         self.string = beginning;
         self.update_len();
 
-        return Self::from(&remainder[..]);
+        Self::from(&*remainder)
     }
 
     pub fn as_bytes(&self) -> &[u8] {

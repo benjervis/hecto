@@ -17,6 +17,7 @@ pub struct Terminal {
 }
 
 impl Terminal {
+    #[allow(clippy::should_implement_trait)]
     pub fn default() -> Result<Self, std::io::Error> {
         let (width, height) = termion::terminal_size()?;
         Ok(Self {

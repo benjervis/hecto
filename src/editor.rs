@@ -91,25 +91,28 @@ impl Editor {
         welcome_message = format!("{GUTTER_CHAR}{spaces}{welcome_message}");
         welcome_message.truncate(width);
 
-        println!("{welcome_message}\r")
+        println!("{welcome_message}\r");
     }
 
     pub fn draw_row(&self, row: &Row) {
         let width = self.terminal.size().width as usize;
 
         let start = self.offset.x;
-        let end = self.offset.x + width;
+        let end = self.offset.x.saturating_add(width);
 
         let row = row.render(start, end);
 
-        println!("{row}\r")
+        println!("{row}\r");
     }
 
     fn draw_rows(&self) {
         let height = self.terminal.size().height;
         for terminal_row in 0..height {
             Terminal::clear_current_line();
-            if let Some(row) = self.document.row(terminal_row as usize + self.offset.y) {
+            if let Some(row) = self
+                .document
+                .row(self.offset.y.saturating_add(terminal_row as usize))
+            {
                 self.draw_row(row);
             } else if self.document.is_empty() && terminal_row == height / 3 {
                 self.draw_welcome_message();
@@ -131,11 +134,11 @@ impl Editor {
                     self.quit_times -= 1;
                     return Ok(());
                 }
-                self.should_quit = true
+                self.should_quit = true;
             }
             Key::Ctrl('s') => self.save(),
-            Key::Char(c) => {
-                self.document.insert(&self.cursor_position, c);
+            Key::Char(char) => {
+                self.document.insert(&self.cursor_position, char);
                 self.move_cursor(Key::Right);
             }
             Key::Delete => self.document.delete(&self.cursor_position),
@@ -183,7 +186,7 @@ impl Editor {
             }
             Key::Down => {
                 if y < height {
-                    y = y.saturating_add(1)
+                    y = y.saturating_add(1);
                 }
 
                 if selected_x != x {
@@ -217,14 +220,14 @@ impl Editor {
             }
             Key::PageUp => {
                 y = if y > terminal_height {
-                    y - terminal_height
+                    y.saturating_sub(terminal_height)
                 } else {
                     0
                 }
             }
             Key::PageDown => {
                 y = if y.saturating_add(terminal_height) < height {
-                    y + terminal_height as usize
+                    y.saturating_add(terminal_height)
                 } else {
                     height
                 }
@@ -252,11 +255,10 @@ impl Editor {
         let args: Vec<String> = env::args().collect();
         let mut initial_status = String::from("HELP: Ctrl-S = save | Ctrl-Q = quit");
 
-        let document = if args.len() > 1 {
-            let file_name = &args[1];
-            let doc = Document::open(&file_name);
-            if doc.is_ok() {
-                doc.unwrap()
+        let document = if let Some(file_name) = args.get(1) {
+            let doc = Document::open(file_name);
+            if let Ok(doc) = doc {
+                doc
             } else {
                 initial_status = format!("ERR: Could not open file: {file_name}");
                 Document::default()
@@ -324,9 +326,7 @@ impl Editor {
 
         let len = status.len() + line_indicator.len();
 
-        if width > len {
-            status.push_str(&" ".repeat(width - len));
-        }
+        status.push_str(&" ".repeat(width.saturating_sub(len)));
 
         status = format!("{status}{line_indicator}");
         status.truncate(width);
@@ -341,7 +341,7 @@ impl Editor {
     fn draw_message_bar(&self) {
         Terminal::clear_current_line();
         let message = &self.status_message;
-        if Instant::now() - message.time < Duration::new(5, 0) {
+        if message.time.elapsed() < Duration::new(5, 0) {
             let mut text = message.text.clone();
             text.truncate(self.terminal.size().width as usize);
             print!("{text}");
@@ -379,11 +379,7 @@ impl Editor {
                         result.push(c);
                     }
                 }
-                Key::Backspace => {
-                    if !result.is_empty() {
-                        result.truncate(result.len() - 1);
-                    }
-                }
+                Key::Backspace => result.truncate(result.len().saturating_sub(1)),
                 Key::Esc => {
                     result.truncate(0);
                     break;
