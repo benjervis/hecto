@@ -138,6 +138,9 @@ impl Editor {
             }
             Key::Ctrl('s') => self.save(),
             Key::Ctrl('f') => self.search(),
+            Key::Ctrl(ctrl_key) => {
+                println!("Sorry I haven't implemented Ctrl-{ctrl_key}!");
+            }
             Key::Char(char) => {
                 self.document.insert(&self.cursor_position, char);
                 self.move_cursor(Key::Right);
